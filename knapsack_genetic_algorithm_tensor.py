@@ -24,7 +24,7 @@ KNAPSACK_SIZE = 1000
 # number of generations
 MAX_GENERATIONS = 1000
 # amount of individuals from a population to pick and transfer to new population
-best_percent_amount = int(KNAPSACK_SIZE * 0.1)
+best_percent_amount = int(POPULATION_SIZE * 0.1)
 # 50% of individuals from a population
 percent_to_mate_amount = int(POPULATION_SIZE * 0.5)
 # chance to mutate a single item (flip its value), base is 80% per individual in the population, applied globally must be divided by knapsack size
