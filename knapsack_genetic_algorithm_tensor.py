@@ -1,7 +1,7 @@
 import torch
 from timeit import default_timer as timer
 import math
-import random
+import cpuinfo
 
 ############################################################
 #
@@ -9,16 +9,20 @@ import random
 #
 ############################################################
 
+print("\nSetting up environment...")
+# set seed to use for generating random numbers
+seed = torch.initial_seed()
+torch.manual_seed(seed)
 # specifies the device to use, GPU: "cuda", CPU: "cpu"
 device = torch.device("cuda")
 # specifies the population size to use
-POPULATION_SIZE = 4096
+POPULATION_SIZE = 50000
 # population must be divisible by 2, fix it just in case
 POPULATION_SIZE += POPULATION_SIZE % 2
 # specifies the knapsack size in number of items
-KNAPSACK_SIZE = 4096
+KNAPSACK_SIZE = 1000
 # number of generations
-max_generations = 4096
+MAX_GENERATIONS = 1000
 # amount of individuals from a population to pick and transfer to new population
 best_percent_amount = int(KNAPSACK_SIZE * 0.1)
 # 50% of individuals from a population
@@ -36,7 +40,7 @@ min_item_price = 2
 # maximum price of an item in a knapsack to generate
 max_item_price = 100
 # maximum weight of all items in a knapsack
-max_knapsack_weight = round((min_item_weight + max_item_weight) / (random.uniform(3, 5)) * KNAPSACK_SIZE)
+max_knapsack_weight = ((min_item_weight + max_item_weight) / (3 + 2 * (torch.rand((1, ), device=device))) * KNAPSACK_SIZE).int()
 
 ############################################################
 #
@@ -46,9 +50,7 @@ max_knapsack_weight = round((min_item_weight + max_item_weight) / (random.unifor
 
 knapsack_prices = torch.randint(min_item_price, max_item_price + 1, (KNAPSACK_SIZE, ), device=device)
 knapsack_weights = torch.randint(min_item_weight, max_item_weight + 1, (KNAPSACK_SIZE, ), device=device)
-knapsack_max_weight = torch.tensor([max_knapsack_weight], device=device)
-print("\nMax weight:")
-print(knapsack_max_weight)
+print("\nMax weight: {}".format(max_knapsack_weight.item().__str__()))
 
 ############################################################
 #
@@ -79,12 +81,11 @@ population = torch.lt(population_rand, initial_population_random_threshold).to(d
 #
 ############################################################
 
-print("\nCurrent best solution:")
-print(torch.max(torch.mul(population, knapsack_prices).cumsum_(1)[:, KNAPSACK_SIZE - 1]))
-print("Timer starts...")
+print("\nStarting best solution: {}".format(torch.max(torch.mul(population, knapsack_prices).cumsum_(1)[:, KNAPSACK_SIZE - 1]).item()))
+print("\nTimer starts...")
 start = timer()
 
-for x in range(max_generations):
+for x in range(MAX_GENERATIONS):
     ############################################################
     #
     #  Correct non-admissible solutions
@@ -175,12 +176,13 @@ population.bitwise_and_(item_mask)
 #
 ############################################################
 
-end = timer() - start
+duration = timer() - start
 print("Timer ends...")
-print("Tensor Genetic Algorithm took %f seconds on {}".format("CPU" if device.__str__() == "cpu" else torch.cuda.get_device_name()) % end)
-print("\nBest found solution:")
-print(torch.max(torch.mul(population, knapsack_prices).cumsum_(1)[:, KNAPSACK_SIZE - 1]))
-print("\nTarget solution:")
-print(target_solution)
-print("\nTarget ceil:")
-print(target_ceil)
+device_name = cpuinfo.get_cpu_info()['brand_raw'] if device.__str__() == "cpu" else torch.cuda.get_device_name()
+print("\nTensor Genetic Algorithm took %f seconds" % duration)
+print("Device: {}".format(device_name))
+print("Best found solution: {}".format(torch.max(torch.mul(population, knapsack_prices).cumsum_(1)[:, KNAPSACK_SIZE - 1]).item()))
+print("Target solution:     {}".format(target_solution.item()))
+print("Target ceil:         {}".format(target_ceil.item()))
+output_file = open("output/tensor_output_gpu_only.csv", "a")
+output_file.write("{};{};{};{};{}\n".format(device.__str__(), POPULATION_SIZE, KNAPSACK_SIZE, MAX_GENERATIONS, duration))
