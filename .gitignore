@@ -1,5 +1,7 @@
+input/
 output/
 irrelevant/
 .idea/
 .RData
 .Rhistory
+snippets.py

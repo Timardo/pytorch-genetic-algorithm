@@ -50,7 +50,7 @@ max_knapsack_weight = ((min_item_weight + max_item_weight) / (3 + 2 * (torch.ran
 
 knapsack_prices = torch.randint(min_item_price, max_item_price + 1, (KNAPSACK_SIZE, ), device=device)
 knapsack_weights = torch.randint(min_item_weight, max_item_weight + 1, (KNAPSACK_SIZE, ), device=device)
-print("\nMax weight: {}".format(max_knapsack_weight.item().__str__()))
+print("\nMax weight: {}".format(max_knapsack_weight.item()))
 
 ############################################################
 #
@@ -184,5 +184,5 @@ print("Device: {}".format(device_name))
 print("Best found solution: {}".format(torch.max(torch.mul(population, knapsack_prices).cumsum_(1)[:, KNAPSACK_SIZE - 1]).item()))
 print("Target solution:     {}".format(target_solution.item()))
 print("Target ceil:         {}".format(target_ceil.item()))
-output_file = open("output/tensor_output_gpu_only.csv", "a")
+output_file = open("output/dummy.csv", "a")
 output_file.write("{};{};{};{};{}\n".format(device.__str__(), POPULATION_SIZE, KNAPSACK_SIZE, MAX_GENERATIONS, duration))
