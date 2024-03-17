@@ -126,7 +126,7 @@ with torch.no_grad():
         # extract best part of the population to separate tensor
         population_best_ten_percent = population[:best_percent_amount]
 
-        # duplicate best half of the population over worst half
+        # duplicate best half of the population over the worst half
         population[percent_to_mate_amount:] = population[:percent_to_mate_amount]
         # initialize random indices tensor and shuffle the rows of the population for more uniform and random crossover
         random_indices_population = torch.randperm(POPULATION_SIZE, device=device)
@@ -150,7 +150,7 @@ with torch.no_grad():
         population_mutation_mask = torch.rand(POPULATION_SIZE, KNAPSACK_SIZE, device=device).lt_(mutation_chance).to(dtype=torch.bool)
         # apply mutation
         population.bitwise_xor_(population_mutation_mask)
-        # transfer best part of the population
+        # transfer the best part of the population
         population[:best_percent_amount] = population_best_ten_percent
 
     ############################################################
