@@ -10,15 +10,15 @@ import torch
 
 print("\nSetting up environment...")
 # specifies the problem to solve from <0;10>, 0 is a dummy problem meant for testing with readable output, others are real data
-problem = "0"
+problem = "10"
 # specifies the population size to use
-POPULATION_SIZE = 10
+POPULATION_SIZE = 26
 # population must be divisible by 2, fix it just in case
 POPULATION_SIZE += POPULATION_SIZE % 2
 # number of generations
 MAX_GENERATIONS = 1000
 # initial number of buses to use in initial population
-STARTING_BUSES_COUNT = 8
+STARTING_BUSES_COUNT = 100
 # amount of individuals from a population to pick and transfer to new population
 best_percent_amount = int(POPULATION_SIZE * 0.1)
 # 50% of individuals from a population
@@ -27,7 +27,7 @@ percent_to_mate_amount = int(POPULATION_SIZE * 0.5)
 seed = torch.initial_seed()
 torch.manual_seed(seed)
 # specifies the device to use, GPU: "cuda", CPU: "cpu"
-device = torch.device("cpu")
+device = torch.device("cuda")
 
 ############################################################
 #
@@ -49,6 +49,7 @@ csvDistMatrixFile.readline()
 start_times_vec = torch.tensor([int(line.split(";")[6]) for line in csvBusLinesFileLines if len(line) > 0], device=device)
 end_times_vec = torch.tensor([int(line.split(";")[7]) for line in csvBusLinesFileLines if len(line) > 0], device=device)
 dist_matrix = torch.tensor([[int(value) for value in csvDistMatrixFile.readline().split(";") if value != "\n"] for j in range(bus_line_count)], device=device)
+transition_matrix = end_times_vec.unsqueeze(-1).expand(bus_line_count, bus_line_count).add(dist_matrix).lt(start_times_vec)
 
 # serve as a static index matrices for creating list of solution matrices from a population in order to get the fitness of solutions (number of buses)
 population_indices = torch.arange(POPULATION_SIZE, device=device).unsqueeze(-1).expand(POPULATION_SIZE, bus_line_count)
@@ -166,3 +167,41 @@ possible_indices = possible_indices[population_indices, population_mutation_indi
 population_mutation_mask.bitwise_not_()
 # apply the mask on population and combine with the mutation population
 population.mul_(population_mutation_mask).add_(possible_indices)
+
+############################################################
+#
+#  Calculate fitness function
+#  - this version of the fitness function takes into account the level of inadmissibility of solutions of population
+#  - each incorrect (impossible) transition between two bus lines counts as +1 to fitness function which means one more bus would be needed for a valid solution
+#  - fixing an inadmissible solution is just as complex as using a mutation operator that produces admissible solutions only
+#  - this is just a proof of concept that is not usable on large problems with large populations due to insanely high memory requirements
+#  - as an example, the largest problem with around 1000 bus lanes and 100 starting buses can be run with maximum POPULATION_SIZE of 26 on a system with 64GB RAM and 12GB GPU VRAM
+#    using ~42GB of shared GPU memory out of 43GB available (using more memory than the GPU can provide dramatically slows down the process anyway and should be avoided at all costs)
+#
+############################################################
+
+population_matrix.mul_(0)
+# set 1 to indices that indicate which buses serve which bus line
+population_matrix[population_indices, row_indices, population] = 1
+# indices matrix used to create 4D matrix that defines current transitions between bus lines
+population_indices_1 = torch.arange(POPULATION_SIZE, device=device).unsqueeze(-1).unsqueeze(-1).expand(POPULATION_SIZE, STARTING_BUSES_COUNT, bus_line_count)
+# indices matrix used to create 4D matrix that defines current transitions between bus lines
+row_indices_1 = torch.arange(STARTING_BUSES_COUNT, device=device).unsqueeze(-1).expand(STARTING_BUSES_COUNT, bus_line_count)
+# transposed population matrix for ease of indexing
+population_matrix_transposed = population_matrix.transpose(1, 2)
+# final mask containing all current bus line transitions filtered to upper part of diagonal (diagonal-exclusive)
+# the size of this mask is POPULATION_SIZE * STARTING_BUSES_COUNT * bus_line_count * bus_line_count, the largest problem is 1000 bus lines and a minimum of ~60 buses
+# this makes this mask the size of 60_000_000 * POPULATION_SIZE bytes which is about 60MB per individual in population which is not viable for large population sizes
+# TODO: find an alternative that does not take as much space
+population_matrix_transposed_mask = population_matrix_transposed[population_indices_1, row_indices_1].bitwise_and(population_matrix_transposed[population_indices_1, row_indices_1].transpose(2, 3)).triu(diagonal=1)
+# current number of transitions in population
+population_current_transitions = population_matrix_transposed_mask.cumsum(2).cumsum(3)[:, :, bus_line_count - 1, bus_line_count - 1].cumsum(1)[:, STARTING_BUSES_COUNT - 1]
+# current transitions filtered with possible transitions mask omitting impossible transitions
+population_possible_transitions = population_matrix_transposed_mask.bitwise_and(transition_matrix).cumsum(2).cumsum(3)[:, :, bus_line_count - 1, bus_line_count - 1].cumsum(1)[:, STARTING_BUSES_COUNT - 1]
+# the difference between the number of current transitions and possible transitions, anything above zero is a non-admissible solution
+population_transition_difference = population_current_transitions.add_(population_possible_transitions.mul_(-1))
+# get fitness tensor (number of buses) by summing the number of server bus lines for each bus, then summing the number of non-zero-bus-line-serving buses and extracting this number
+fitness = population_matrix.cumsum_(1).gt_(0).cumsum_(2)[:, bus_line_count - 1, STARTING_BUSES_COUNT - 1]
+print(fitness)
+print(population_transition_difference)
+print(fitness.add(population_transition_difference))
