@@ -10,9 +10,9 @@ import torch
 
 print("\nSetting up environment...")
 # specifies the problem to solve from <0;10>, 0 is a dummy problem meant for testing with readable output, others are real data
-problem = "10"
+problem = "1"
 # specifies the population size to use
-POPULATION_SIZE = 26
+POPULATION_SIZE = 20
 # population must be divisible by 2, fix it just in case
 POPULATION_SIZE += POPULATION_SIZE % 2
 # number of generations
@@ -78,7 +78,7 @@ for i in range(POPULATION_SIZE):
 
         while not is_valid:
             rand_bus = random.randint(0, STARTING_BUSES_COUNT - 1)
-            is_valid = buses_last_bus_lane[rand_bus] == -1 or end_times_vec[buses_last_bus_lane[rand_bus]] + dist_matrix[buses_last_bus_lane[rand_bus], j] <= start_times_vec[j]
+            is_valid = True#buses_last_bus_lane[rand_bus] == -1 or end_times_vec[buses_last_bus_lane[rand_bus]] + dist_matrix[buses_last_bus_lane[rand_bus], j] <= start_times_vec[j]
 
         population_arr[i][j] = rand_bus
         buses_last_bus_lane[rand_bus] = j
