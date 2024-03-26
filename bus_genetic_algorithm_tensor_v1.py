@@ -24,7 +24,7 @@ with torch.no_grad():
 
     print("\nSetting up environment...")
     # specifies the problem to solve from <0;10>, 0 is a dummy problem meant for testing with readable output, others are real data
-    problem = "2"
+    problem = "1"
     # specifies the population size to use
     POPULATION_SIZE = 1000
     # population must be divisible by 2, fix it just in case
@@ -32,7 +32,7 @@ with torch.no_grad():
     # number of generations
     MAX_GENERATIONS = 10000
     # initial number of buses to use in initial population
-    STARTING_BUSES_COUNT = 15
+    STARTING_BUSES_COUNT = 10
     # amount of individuals from a population to pick and transfer to new population
     best_percent_amount = int(POPULATION_SIZE * 0.1)
     # 50% of individuals from a population
@@ -134,6 +134,8 @@ with torch.no_grad():
     population_transition_difference = population_current_transitions.add_(population_possible_transitions.mul_(-1))
     # get fitness tensor (number of buses) by summing the number of server bus lines for each bus, then summing the number of non-zero-bus-line-serving buses and extracting this number
     fitness = population_matrix.cumsum_(1).gt_(0).cumsum_(2)[:, bus_line_count - 1, STARTING_BUSES_COUNT - 1]
+    # add the difference to fitness
+    fitness.add_(population_transition_difference)
 
     print("\nStarting best solution: {}".format(fitness.sort(0, descending=False)[0][0].item()))
     print("\nTimer starts...")
@@ -243,6 +245,25 @@ with torch.no_grad():
         population_transition_difference = population_current_transitions.add_(population_possible_transitions.mul_(-1))
         # get fitness tensor (number of buses) by summing the number of server bus lines for each bus, then summing the number of non-zero-bus-line-serving buses and extracting this number
         fitness = population_matrix.cumsum_(1).gt_(0).cumsum_(2)[:, bus_line_count - 1, STARTING_BUSES_COUNT - 1]
+        # add the difference to fitness
+        fitness.add_(population_transition_difference)
+
+    ############################################################
+    #
+    #  Sort population
+    #
+    ############################################################
+
+    # sort population according to the fitness function
+    sort_result, sort_indices = fitness.sort(0, descending=False)
+    population = population[sort_indices]
+    fitness = sort_result
+
+    ############################################################
+    #
+    #  Print result
+    #
+    ############################################################
 
     duration = timer() - start
     print("Timer ends...")
@@ -250,4 +271,5 @@ with torch.no_grad():
     print("\nTensor Genetic Algorithm took %f seconds" % duration)
     print("Device: {}".format(device_name))
     print("Problem number: {}".format(problem))
-    print("Best found solution: {}".format(fitness.sort(0, descending=False)[0][0].item()))
+    print("Best found solution: {}".format(fitness[0].item()))
+    print(population[0])

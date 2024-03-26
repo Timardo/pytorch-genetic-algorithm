@@ -202,6 +202,5 @@ population_possible_transitions = population_matrix_transposed_mask.bitwise_and(
 population_transition_difference = population_current_transitions.add_(population_possible_transitions.mul_(-1))
 # get fitness tensor (number of buses) by summing the number of server bus lines for each bus, then summing the number of non-zero-bus-line-serving buses and extracting this number
 fitness = population_matrix.cumsum_(1).gt_(0).cumsum_(2)[:, bus_line_count - 1, STARTING_BUSES_COUNT - 1]
-print(fitness)
-print(population_transition_difference)
-print(fitness.add(population_transition_difference))
+# add the difference to fitness
+fitness.add_(population_transition_difference)
