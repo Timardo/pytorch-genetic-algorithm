@@ -149,14 +149,14 @@ def get_target_solution(knapsack: Knapsack):
 
 def main():
     random.seed()
-    knapsack_size = 4096
-    population_size = 4096
-    max_generations = 4096
+    knapsack_size = 1000
+    population_size = 5000
+    max_generations = 1000
 
     knapsack = generate_knapsack(knapsack_size)
     population = generate_initial_population(population_size, knapsack)
     target = get_target_solution(knapsack)
-    output_file = open("output/outputFile{}.csv".format(int(time.time())), "a")
+    output_file = open("output/naive_output_knapsack.csv", "a")
     current_best = 0
     start = timer()
 
@@ -186,14 +186,13 @@ def main():
             current_best = population[0].fitness
             print("Generation: {}, Best fitness: {}, Target estimate: {}, Target ceil: {}".format(x, population[0].fitness, target[0].fitness, target[1]))
 
-        output_file.write("{};{}\n".format(x, population[0].fitness))
+        # if population[0].fitness > target[0].fitness:
+        #     break
 
-        if population[0].fitness > target[0].fitness:
-            break
-
+    duration = timer() - start
+    output_file.write("naive;{};{};{};{}\n".format(population_size, knapsack_size, max_generations, duration))
     output_file.close()
-    end = timer() - start
-    print("Simple Genetic Algorithm took %f seconds" % end)
+    print("Simple Genetic Algorithm took %f seconds" % duration)
 
 
 if __name__ == '__main__':
