@@ -6,7 +6,7 @@ import cpuinfo
 ############################################################
 #
 #  Genetic algorithm implementation using tensors with goal to solve bus count optimization problem
-#  Version: 1.1
+#  Version: 1.2
 #
 #  Known issues:
 #  - mutation and crossover operator produce non-admissible solutions
@@ -41,6 +41,8 @@ with torch.no_grad():
     torch.manual_seed(seed)
     # specifies the device to use, GPU: "cuda", CPU: "cpu"
     device = torch.device("cpu")
+    # minimum percentage of one parent solution in new child solution after crossover
+    crossover_min_perc = 0.2
 
     ############################################################
     #
@@ -169,7 +171,7 @@ with torch.no_grad():
         #
         #  Crossover operator
         #  - this version of the crossover operator produces non-admissible solutions that must be fixed or their level of inadmissibility must be taken into account in the fitness function
-        #  - uses k-point crossover where k is the number of bus connections
+        #  - uses one-point crossover
         #
         ############################################################
 
@@ -185,8 +187,10 @@ with torch.no_grad():
         population = population[population_shuffle_indices, :]
         population_shuffle_indices = torch.randperm(population_size, device=device)
         population_2 = population_2[population_shuffle_indices, :]
-        # create mask for picking between populations
-        population_crossover_mask = torch.rand(population_size, bus_connection_count, device=device).lt_(0.5).bool()
+        # create threshold mask for the one-point crossover operation
+        population_one_point_crossover_threshold = torch.rand(population_size, device=device).add_(crossover_min_perc).div_(1 + crossover_min_perc).unsqueeze(-1)
+        # create mask for picking between populations by using the threshold and sorting it
+        population_crossover_mask = torch.rand(population_size, bus_connection_count, device=device).lt_(population_one_point_crossover_threshold).sort(1)[0].bool()
         # apply mask to pick items from the first population
         population.mul_(population_crossover_mask)
         # negate the mask
